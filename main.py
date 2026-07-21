@@ -2,7 +2,6 @@ from menus.display import *
 
 def main():
     clear_screen()
-    print("  /----------------/\n / Password Vault /\n/----------------/")
     main_menu()
     
 

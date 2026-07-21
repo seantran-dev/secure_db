@@ -43,8 +43,6 @@ def delete_credential(user, credential):
     cur.close()
     conn.close()
 
-    return
-
 def add_credentials(user, service, login_username, password, aes_key):
     conn = get_connection()
     cur = conn.cursor()
@@ -66,8 +64,49 @@ def add_credentials(user, service, login_username, password, aes_key):
 
     cur.close()
     conn.close()
-    return
 
-def edit_credentials():
+# credential[] : credential_id, user_id, service, login_username, ciphertext, nonce 
+def edit_credentials(user, aes_key, credential, service, username, password):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    user_id = user[0]
+    cred_id = credential[0]
+    if service == "":
+        new_service = credential[2]
+    else:
+        new_service = service
+
+    if username == "":
+        new_username = credential[3]
+    else:
+        new_username = username
+
+    if password == "":
+        nonce = credential[5]
+        ciphertext = credential[4]
+    else:
+        password_bytes = password.encode("utf-8")
+        nonce, ciphertext = encrypt_CTR(password_bytes, aes_key)
     
-    return
+    cur.execute(
+        """
+        UPDATE credentials
+        SET
+            service = %s,
+            login_username = %s,
+            ciphertext = %s, 
+            nonce = %s
+        WHERE credential_id = %s
+        AND user_id = %s
+        """,
+        (new_service, new_username, ciphertext, nonce, cred_id, user_id)
+    )
+    conn.commit()
+
+    updated_credential = (cred_id, user_id, new_service, new_username, ciphertext, nonce)
+
+    cur.close()
+    conn.close()
+
+    return updated_credential
