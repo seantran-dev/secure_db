@@ -36,3 +36,4 @@ def get_user(username):
     conn.close()
 
     return user
+

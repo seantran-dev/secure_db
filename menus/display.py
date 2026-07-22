@@ -1,18 +1,62 @@
 
-import hashlib
 import os
 import pyperclip
-
 from getpass import getpass
+
 from authentication.login import login
 from authentication.register import register
+
 from database.credentials import *
 from database.users import create_user, get_user
+from database.settings import *
 from encryption.decrypt import decrypt_secret
+
+# 'User': The user parameter is the list containing the database information from the user table
+# 'Key' : The key parameter is the AES encryption key derived from the user's password
+
+# Main Menu Navigation
 breadcrumb = []
 breadcrumb.append("Main Menu")
 
-# Main Menu
+# Header showing breadcrumb for menu navigation
+def draw_header(user):
+    clear_screen()
+    
+    line_length = 41
+    if user is None:
+        print("[Password Vault]")
+    else:
+        name = user[1]
+        print(f"[Password Vault]", end ="")
+        print(" " * (line_length - 22 - len(name)), end = "")
+        print(f"User: {name}")
+    print(">", end = "")
+    print("-" * line_length, end = "\n")
+    print(" ", end = "")
+    print(" > ".join(breadcrumb))
+    print(">", end = "")
+    print("-" * line_length, end = "\n")
+
+# Clears screen
+def clear_screen():
+    os.system("cls" if os.name == "nt" else "clear")
+
+# Removes a breadcrumb from the menu navitation
+def back(n):
+    for i in range(n):
+        breadcrumb.pop()
+
+# Exit program
+def exit_program():
+    clear_screen()
+    print("[Password Vault]")
+    print("-" * 20)
+    print("//USER - Application closed successfully.\n")
+    input("\nPress [ENTER] to continue.")
+    clear_screen()
+    raise SystemExit(0)
+
+
 def main_menu(fail_status = None, cancelled_registration = None, short = None):
     clear_screen()
     draw_header(None)
@@ -62,10 +106,12 @@ def login_menu():
     else: 
         login_options(user, key, True, None, None)
 
+# Main Menu > Register
 def register_menu(user_taken = False):
     breadcrumb.append("Register")
     draw_header(None)
     min_length = 4
+
     if user_taken == True:
         print("//DENIED - Username already taken.\n")
     else:
@@ -82,7 +128,7 @@ def register_menu(user_taken = False):
         if username == "" or email == "" or password == "":
             back(1)
             main_menu(True, None, False)
-        elif len(username) < 4 or len(email) < 4 or len(password) < 4:
+        elif len(username) < min_length or len(email) < min_length or len(password) < min_length:
             back(1)
             main_menu(False, False, True)
         else:
@@ -107,6 +153,7 @@ def register_menu(user_taken = False):
                     print(f" Password:  ********")
                     print()
                     continue
+                
 # Main Menu > Log-in > Credentials
 def login_options(u, k, login_success, no_credentials_stored, add_success):
     breadcrumb.append("Credentials")
@@ -127,12 +174,12 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
         draw_header(user)
         print("//ERROR - Please select a valid option.\n")
 
-    
     while True:
 
         print("  1. View Credentials")
         print("  2. Add Credential")
         print()
+        print("  S. Settings")
         print("  R. Return (Logout)")
         print("  Q. Quit Program")
         print()
@@ -146,6 +193,9 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
             draw_header(user)
             add_credentials_menu(user, key)
             break
+        elif page_login_options.lower() == "s":
+            settings_menu(user, key)
+            break
         elif page_login_options.lower() == "r" or page_login_options.lower() == "":
             back(2)
             main_menu(None, None, False)
@@ -156,6 +206,72 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
         else:
             draw_header(user)
             print("//ERROR - Please select a valid option.\n")
+
+# settings menu
+def settings_menu(user, key):
+    updated = None
+    while True:
+        user_id = user[0]
+        settings = load_user_settings(user_id)
+        hide_passwords = settings[1] # boolean (default = False)
+        clipboard_timeout = settings[2] # integer (default = 60) seconds
+        auto_lock_timeout = settings[3] # integer (default = 15) minutes
+        default_sort = settings[4] # string (default service)
+
+        clear_screen()
+        
+        print("[Password Vault]  Settings")
+        print("-" * 45) 
+        if updated is True:
+            print("//ACCEPTED - Setting has been updated.\n")
+            updated = False
+        elif updated is False:
+            print("//USER - No changes made.\n")
+        print(" Select an option to edit value.\n")
+        print(f"  1. Hide passwords:             {str(hide_passwords).lower()}")
+        print(f"  2. Clipboard Timeout:          {clipboard_timeout} seconds")
+        print(f"  3. Log-out Timer:              {auto_lock_timeout} minutes")
+        print(f"  4. Sort credentials by:        {default_sort}")
+        print()
+        print("  B: Back (Exit Settings)")
+        print("  Q: Quit Program")
+        print()
+        choice = input("> ").strip().lower()
+        match choice:
+            case "1":
+                new_value = toggle_hide_passwords(user_id, "hide_passwords", hide_passwords)
+                if hide_passwords != new_value and new_value != None:
+                    updated = True
+                else:
+                    updated = False
+            case "2":
+                new_value = set_clipboard_timeout(user_id, "clipboard_timeout", clipboard_timeout)
+                if clipboard_timeout != new_value and new_value != None:
+                    updated = True
+                else:
+                    updated = False
+            case "3":
+                new_value = set_auto_lock_timeout(user_id, "auto_lock_timeout", auto_lock_timeout)
+                if auto_lock_timeout != new_value and new_value != None:
+                    updated = True
+                else:
+                    updated = False
+            case "4":
+                new_value = set_default_sort(user_id, "default_sort", default_sort)
+                if default_sort != new_value and new_value != None:
+                    updated = True
+                else:
+                    updated = False
+            case "b":
+                back(1)
+                login_options(user, key, None, False, None)
+            case "q":
+                exit_program()
+                break
+
+
+
+
 
 
 # Main Menu > Log-in > Credentials > View
@@ -362,41 +478,7 @@ def delete_credentials_menu(user, key, credentials):
             print("//ERROR - Please enter a valid option.\n")
             continue
 
-# Header showing breadcrumb for menu navigation
-def draw_header(user):
-    clear_screen()
-    
-    line_length = 41
-    if user is None:
-        print("[Password Vault]")
-    else:
-        name = user[1]
-        print(f"[Password Vault]", end ="")
-        print(" " * (line_length - 22 - len(name)), end = "")
-        print(f"User: {name}")
-    print(">", end = "")
-    print("-" * line_length, end = "\n")
-    print(" ", end = "")
-    print(" > ".join(breadcrumb))
-    print(">", end = "")
-    print("-" * line_length, end = "\n")
 
-def clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
-
-# Removes a breadcrumb from the menu navitation
-def back(n):
-    for i in range(n):
-        breadcrumb.pop()
-
-def exit_program():
-    clear_screen()
-    print("[Password Vault]")
-    print("-" * 20)
-    print("//USER - Application closed successfully.\n")
-    input("Press [ENTER] to clear display.")
-    clear_screen()
-    SystemExit(0)
 
 if __name__ ==  "__main__":
     print()

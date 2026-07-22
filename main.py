@@ -3,7 +3,6 @@ from menus.display import *
 def main():
     clear_screen()
     main_menu()
-    
 
 
 
