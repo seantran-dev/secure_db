@@ -1,6 +1,7 @@
 from .db import get_connection
 from getpass import getpass
 from encryption.modes import encrypt_CTR, decrypt_CTR
+from datetime import datetime
 
 def get_credentials(user):
     conn = get_connection()
@@ -8,22 +9,20 @@ def get_credentials(user):
 
     user_id = user[0]
     cur.execute("""
-        SELECT credential_id, user_id, service, login_username, ciphertext, nonce
+        SELECT credential_id, user_id, service, login_username, ciphertext, nonce, created_at, updated_at
         FROM credentials
         WHERE user_id = %s
     """, (user_id,))
 
     credentials = cur.fetchall()
 
-    if not credentials:
-        return None
-    else:
-        count = 0
-        for cred_id, user_id, service, username, ciphertext, nonce in credentials:
-            count += 1
-            print(f"  {count}. {service}")
     cur.close()
     conn.close()
+
+    if not credentials:
+        return None
+
+    
 
     return credentials
 
@@ -96,7 +95,8 @@ def edit_credentials(user, aes_key, credential, service, username, password):
             service = %s,
             login_username = %s,
             ciphertext = %s, 
-            nonce = %s
+            nonce = %s,
+            updated_at = CURRENT_TIMESTAMP
         WHERE credential_id = %s
         AND user_id = %s
         """,
@@ -104,9 +104,13 @@ def edit_credentials(user, aes_key, credential, service, username, password):
     )
     conn.commit()
 
-    updated_credential = (cred_id, user_id, new_service, new_username, ciphertext, nonce)
+    
 
     cur.close()
     conn.close()
+
+    credentials_list = get_credentials(user)
+    
+    updated_credential = credentials_list[len(credentials_list) - 1]
 
     return updated_credential

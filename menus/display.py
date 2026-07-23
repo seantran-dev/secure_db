@@ -3,6 +3,7 @@ import os
 import pyperclip
 from getpass import getpass
 
+
 from authentication.login import login
 from authentication.register import register
 
@@ -10,31 +11,40 @@ from database.credentials import *
 from database.users import create_user, get_user
 from database.settings import *
 from encryption.decrypt import decrypt_secret
+from menus.system import *
 
 # 'User': The user parameter is the list containing the database information from the user table
 # 'Key' : The key parameter is the AES encryption key derived from the user's password
 
 # Main Menu Navigation
 breadcrumb = []
-breadcrumb.append("Main Menu")
+breadcrumb.append("Welcome")
+global settings_tab
+settings_tab = "security"
 
 # Header showing breadcrumb for menu navigation
 def draw_header(user):
     clear_screen()
     
-    line_length = 41
+    line_length = 45
     if user is None:
-        print("[Password Vault]")
+        print("[SecureDB] ")
     else:
         name = user[1]
-        print(f"[Password Vault]", end ="")
-        print(" " * (line_length - 22 - len(name)), end = "")
+        print(f"[SecureDB] ", end ="")
+        print(" " * (line_length - 17 - len(name)), end = "")
         print(f"User: {name}")
-    print(">", end = "")
     print("-" * line_length, end = "\n")
     print(" ", end = "")
     print(" > ".join(breadcrumb))
-    print(">", end = "")
+    print("-" * line_length, end = "\n")
+
+def draw_settings_header(user):
+    line_length = 45
+    name = user[1]
+    print(f"SecureDB > Settings", end ="")
+    print(" " * (line_length - 25 - len(name)), end = "")
+    print(f"User: {name}")
     print("-" * line_length, end = "\n")
 
 # Clears screen
@@ -49,7 +59,7 @@ def back(n):
 # Exit program
 def exit_program():
     clear_screen()
-    print("[Password Vault]")
+    print("[SecureDB]")
     print("-" * 20)
     print("//USER - Application closed successfully.\n")
     input("\nPress [ENTER] to continue.")
@@ -156,7 +166,7 @@ def register_menu(user_taken = False):
                 
 # Main Menu > Log-in > Credentials
 def login_options(u, k, login_success, no_credentials_stored, add_success):
-    breadcrumb.append("Credentials")
+    breadcrumb.append("Menu")
     user, key = (u, k)
     draw_header(user)
 
@@ -176,8 +186,8 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
 
     while True:
 
-        print("  1. View Credentials")
-        print("  2. Add Credential")
+        print("  1. Display Credentials")
+        print("  2. Add New Credential")
         print()
         print("  S. Settings")
         print("  R. Return (Logout)")
@@ -207,8 +217,19 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
             draw_header(user)
             print("//ERROR - Please select a valid option.\n")
 
-# settings menu
 def settings_menu(user, key):
+    if settings_tab == "security":
+        security_settings_menu(user, key)
+    elif settings_tab == "credentials":
+        credentials_settings_menu(user, key)
+    elif settings_tab == "account":
+        account_settings_menu(user, key)
+
+
+# SECURITY SETTINGS MENU (default)
+def security_settings_menu(user, key):
+    global settings_tab
+    settings_tab = "security"
     updated = None
     while True:
         user_id = user[0]
@@ -216,11 +237,11 @@ def settings_menu(user, key):
         hide_passwords = settings[1] # boolean (default = False)
         clipboard_timeout = settings[2] # integer (default = 60) seconds
         auto_lock_timeout = settings[3] # integer (default = 15) minutes
-        default_sort = settings[4] # string (default service)
 
         clear_screen()
         
-        print("[Password Vault]  Settings")
+        draw_settings_header(user)
+        print("[ Security ]   Credentials     User Account")
         print("-" * 45) 
         if updated is True:
             print("//ACCEPTED - Setting has been updated.\n")
@@ -231,11 +252,13 @@ def settings_menu(user, key):
         print(f"  1. Hide passwords:             {str(hide_passwords).lower()}")
         print(f"  2. Clipboard Timeout:          {clipboard_timeout} seconds")
         print(f"  3. Log-out Timer:              {auto_lock_timeout} minutes")
-        print(f"  4. Sort credentials by:        {default_sort}")
         print()
-        print("  B: Back (Exit Settings)")
+        print("  N: Next Page")
+        print()
+        print("  X: Exit Settings")
         print("  Q: Quit Program")
         print()
+
         choice = input("> ").strip().lower()
         match choice:
             case "1":
@@ -256,40 +279,175 @@ def settings_menu(user, key):
                     updated = True
                 else:
                     updated = False
-            case "4":
+            case "n":
+                credentials_settings_menu(user, key)
+            case "x":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
+            case "":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
+            case "q":
+                exit_program()
+                break
+
+def get_sort_title(sort_by):
+    match sort_by:
+        case "service":
+            sort_title = "Service (A-Z)"
+        case "created_at":
+            sort_title = "Created at (Newest)"
+        case "updated_at":
+            sort_title = "Updated at (Newest)"
+        case "service (inversed)":
+            sort_title = "Service (Z-A)"
+        case "created_at (inversed)":
+            sort_title = "Created at (Oldest)"
+        case "updated_at (inversed)":
+            sort_title = "Updated at (Oldest)"
+    return sort_title
+
+def credentials_settings_menu(user, key):
+    global settings_tab
+    settings_tab = "credentials"
+    updated = None
+    while True:
+        user_id = user[0]
+        settings = load_user_settings(user_id)
+        default_sort = settings[4] # string (default service)
+
+
+
+        clear_screen()
+        
+        draw_settings_header(user)
+        print("  Security   [ Credentials ]   User Account")
+        print("-" * 45) 
+        if updated is True:
+            print("//ACCEPTED - Setting has been updated.\n")
+            updated = False
+        elif updated is False:
+            print("//USER - No changes made.\n")
+        print(" Select an option to edit value.\n")
+        print(f"  1. Sort credentials by:        {get_sort_title(default_sort)}")
+        print()
+        print("  N: Next Page")
+        print("  B: Previous Page")
+        print()
+        print("  X: Exit Settings")
+        print("  Q: Quit Program")
+        print()
+        choice = input("> ").strip().lower()
+        match choice:
+            case "1":
                 new_value = set_default_sort(user_id, "default_sort", default_sort)
                 if default_sort != new_value and new_value != None:
                     updated = True
                 else:
                     updated = False
-            case "b":
-                back(1)
-                login_options(user, key, None, False, None)
+            case "b": 
+                security_settings_menu(user, key)
+            case "x":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
+            case "":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
             case "q":
                 exit_program()
                 break
 
+def account_settings_menu():
+    settings_tab = "accounts"
+    print()
 
-
-
-
-
-# Main Menu > Log-in > Credentials > View
+# Main Menu > Log-in > Credentials > Display
 def get_credentials_menu(user, key, deletion_success = False):
-    breadcrumb.append("View")
+    breadcrumb.append("Display")
     draw_header(user)
+
+    credentials_list = get_credentials(user)
+    
     if deletion_success is True:
         print("//ACCEPTED - Successfully deleted credential.\n")
-    credentials_list = get_credentials(user)
+    
     if credentials_list == None:
         back(2)
         login_options(user, key, False, True, None)
     else:
         credentials_options(user, key, credentials_list)
 
-def credentials_options(user, key, list):
+def sort_credentials(credentials_list, sort_by):
+    if not credentials_list:
+            return None
+
+    sort_title = ""
+    if sort_by == "service":
+        credentials_list.sort(key=lambda x: x[2].lower())
+        sort_title = "Service (A-Z)"
+    elif sort_by == "created_at":
+        credentials_list.sort(key=lambda x: x[6])
+        sort_title = "Created at (Newest)"
+    elif sort_by == "updated_at":
+        credentials_list.sort(key=lambda x: x[7])
+        sort_title = "Updated at (Newest)"
+    elif sort_by == "service (inversed)":
+        credentials_list.sort(key=lambda x: x[2].lower(), reverse = True)
+        sort_title = "Service (Z-A)"
+    elif sort_by == "created_at (inversed)":
+        credentials_list.sort(key=lambda x: x[6], reverse = True)
+        sort_title = "Created at (Oldest)"
+    elif sort_by == "updated_at (inversed)":
+        credentials_list.sort(key=lambda x: x[7], reverse = True)
+        sort_title = "Updated at (Oldest)"
+
+    return credentials_list, sort_title
+
+def display_credentials(credentials_list, sort_by):
+    credentials_list, sort_title = sort_credentials(credentials_list, sort_by)
+    count = 0
+    print(f" Select an entry for more options.\n")
+    for cred_id, user_id, service, username, ciphertext, nonce, created_at, updated_at in credentials_list:
+        count += 1
+        print(f"  {count}. {service}")
+    print(f"\n Displaying by: {sort_title}")
+
+def credentials_options(user, key, credentials_list):
+    user_settings = load_user_settings(user[0])
+    sort_by = user_settings [4]
+
+    display_credentials(credentials_list, sort_by)
 
     print()
+    print("  S. Settings")
     print("  R. Return")
     print("  Q. Quit Program")
     print()
@@ -298,33 +456,41 @@ def credentials_options(user, key, list):
     if option_status.lower() == "r" or option_status.lower() == "":
         back(2)
         login_options(user, key, None, False, None)
+    elif option_status.lower() == "s":
+        settings_menu(user, key)
     elif option_status.lower() == "q":
         exit_program()
     elif option_status.isdigit():
-        if int(option_status) > 0 and int(option_status) <= len(list):
-            credential_options(user, key, list[int(option_status) - 1], False, False)
+        if int(option_status) > 0 and int(option_status) <= len(credentials_list):
+        
+            credential_options(user, key, credentials_list[int(option_status) - 1], user_settings, False, False)
     else:
         draw_header(user)
         print("//ERROR - Please select a valid option.\n")
 
 # Main Menu > Log-in > Credentials > View > Service
-def credential_options(user, key, credentials, cancelled = False, copied_password = False):
+def credential_options(user, key, credentials, user_settings, cancelled = False, copied_password = False, ):
     clear_screen()
     breadcrumb.append("Service")
     draw_header(user)
     password_star = "********"
-    
+    clipboard_timeout = user_settings[2]
     if cancelled == True:
         print(f" //USER - Operation cancelled, no changes made.\n")
     elif cancelled == None and copied_password == None:
         print(f" //ACCEPTED - Changes updated successfully.\n")
     elif copied_password == True:
-        print(f" //USER - Password copied to clipboard.\n")
+        print(f" //USER - Password copied. Clipboard will clear in {clipboard_timeout} seconds.\n")
         password_star = '******** [COPIED]'
     while True:
         print(f" Service:      {credentials[2]}")
+        print(f" Created:      {credentials[6].strftime('%b %d, %Y %I:%M %p')}")
+        print(f" Last Updated: {credentials[7].strftime('%b %d, %Y %I:%M %p')}")
+        print()
         print(f" Username:     {credentials[3]}")
         print(f" Password:     {password_star}")
+        print()
+        
         print()
         print("  1. Reveal Password ")
         print("  2. Copy Password ")
@@ -343,8 +509,8 @@ def credential_options(user, key, credentials, cancelled = False, copied_passwor
         elif edit_option.lower() == '2':
             back(1)
             password = decrypt_secret(key, credentials)
-            pyperclip.copy(password)
-            credential_options(user, key, credentials, None, True)
+            copy_to_clipboard(password, clipboard_timeout)
+            credential_options(user, key, credentials, user_settings, None, True)
             break
         # Edit Information
         elif edit_option.lower() == '3':
@@ -368,19 +534,45 @@ def credential_options(user, key, credentials, cancelled = False, copied_passwor
 
 # Main Menu > Log-in > Credentials > Add
 def add_credentials_menu(user, key):
-    service = input("Service: ")
-    login_username = input("Username: ")
-    password = getpass("Password: ")
-    print("\nSave? (Y/N)")
-    confirm_credential = input("> ")
-    if confirm_credential.lower() == "y":
-        add_credentials(user, service, login_username, password, key)
-        back(2)
-        login_options(user, key, login_success = False, no_credentials_stored = False, add_success = True)
-        
-    elif confirm_credential.lower() == "n":
-        back(2)
+    settings = load_user_settings(user[0])
+    service = input(" Service: ")
+    if service.strip() == "":
         login_options(user, key, login_success = False, no_credentials_stored = False, add_success = False)
+    
+    login_username = input(" Username: ")
+
+
+    if settings[1] is True:
+        password = getpass(" Password: ")
+        print_password = "********"
+    elif settings[1] is False:
+        password = input(" Password: ")
+        print_password = password
+
+
+    value_error = None
+    while True:
+        if value_error is True:
+            print(f" Service:  {service}")
+            print(f" Username: {login_username}")
+            print(f" Password: {print_password}")
+            value_error = False
+        print("\nAdd credentials? (Y/N)\n")
+        confirm_credential = input("> ")
+        if confirm_credential.lower() == "y":
+            add_credentials(user, service, login_username, password, key)
+            back(2)
+            login_options(user, key, login_success = False, no_credentials_stored = False, add_success = True)
+            break
+        elif confirm_credential.lower() == "n":
+            back(2)
+            login_options(user, key, login_success = False, no_credentials_stored = False, add_success = False)
+            break
+        else:
+            draw_header(user)
+            print("//ERROR - Please select a valid option.\n")
+            value_error = True
+            continue
 
 # Main Menu > Log-in > Credentials > View > Service > Reveal Password
 def show_credentials_info(user, key, credential):
@@ -404,6 +596,9 @@ def show_credentials_info(user, key, credential):
 
 # Main Menu > Log-in > Credentials > View > Service > Edit Information
 def edit_credentials_menu(user, key, credential):
+    user_settings = load_user_settings(user[0])
+    hide_password = user_settings[1]
+
     breadcrumb.append("Edit")
     draw_header(user)
     password_fail = False
@@ -424,19 +619,30 @@ def edit_credentials_menu(user, key, credential):
         if new_username == "":
             print("                   (no change)")
         print()
+        new_password = ""
+        if hide_password is True:
+            print(f" Current password : ********")
+            new_password = getpass("    [New password]: ")
+            if new_password != "":
+                retype_password = getpass(" [Retype password]: ")
+            else: 
+                retype_password = ""
+                print("                   (no change)")
 
-        print(f" Current password : ********")
-        new_password = getpass("    [New password]: ")
-        if new_password != "":
-            retype_password = getpass(" [Retype password]: ")
-        else: 
-            retype_password = ""
-            print("                   (no change)")
+        elif hide_password is False:
+            password = decrypt_secret(key, credential)
+            print(f" Current password : {password}")
+            new_password = input("    [New password]: ")
+            if new_password != "":
+                retype_password = input(" [Retype password]: ")
+            else: 
+                retype_password = ""
+                print("                   (no change)")
         if new_password == retype_password:
             if new_service == "" and new_username == "" and new_password == "":
                 back(2)
                 input("\n//USER - No changes made. Press [ENTER] to continue.")
-                credential_options(user, key, credential, True, None)
+                credential_options(user, key, credential, user_settings, True, None)
                 break
             print()
             print("Proceed with the changes? (Y/N)\n")
@@ -444,11 +650,11 @@ def edit_credentials_menu(user, key, credential):
             if confirm_edit.lower() == 'y':
                 updated_credential = edit_credentials(user, key, credential, new_service, new_username, new_password)
                 back(2)
-                credential_options(user, key, updated_credential, None, None)
+                credential_options(user, key, updated_credential, user_settings, None, None)
                 break
             elif confirm_edit.lower() == 'n':
                 back(1)
-                credential_options(user, key, credential, True, False)
+                credential_options(user, key, credential, user_settings, True, False)
                 break
         else:
             password_fail = True
@@ -458,6 +664,7 @@ def delete_credentials_menu(user, key, credentials):
     breadcrumb.append("Delete")
     clear_screen()
     draw_header(user)
+    user_settings = load_user_settings(user[0])
 
     while True: 
         print(f"'{credentials[2]}': ", end = " ")
@@ -470,7 +677,7 @@ def delete_credentials_menu(user, key, credentials):
             break
         elif confirm_delete.lower() == "n":
             back(2)
-            credential_options(user, key, credentials, cancelled = True)
+            credential_options(user, key, credentials, user_settings, cancelled = True)
             print()
             break
         else:
