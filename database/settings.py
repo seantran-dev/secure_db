@@ -1,15 +1,36 @@
 # settings
 from .db import get_connection
 import os
+from getpass import getpass
+from database.users import *
+from authentication.login import login
+
+
+def draw_settings_header(current_tab, user = None):
+    clear_screen()
+    line_length = 45
+    
+    print(f" SecureDB > Settings", end ="")
+    
+    if user == None:
+        print("")
+    else:
+        name = user[1]
+        print(" " * (line_length - 26 - len(name)), end = "")
+        print(f"User: {name}")
+    print("-" * line_length, end = "\n")
+    if current_tab == "security":  
+        print(" [Security]    Credentials     User Account")
+    elif current_tab == "credentials":  
+        print("  Security    [Credentials]    User Account")
+    elif current_tab == "accounts":
+        print("  Security     Credentials    [User Account]")
+    print("-" * line_length, end = "\n")
 
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
-def draw_options_header(option):
-    print("[Password Vault] Settings > ", end = "")
-    print(option)
-    print("-" * 40
-          )
+
 def load_user_settings(user_id):
     conn = get_connection() 
     cur = conn.cursor()
@@ -60,22 +81,34 @@ def update_setting(user_id, setting, value):
 
 # Toggle hide password
 def toggle_hide_passwords(user_id, setting, current_value):
-    clear_screen()
-    draw_options_header("Hide Password")
-    print("Enabling this will hide all user/credential password entries and displays.\n")
-    print("  1. Yes")
-    print("  2. No")
-    print()
-    choice = input("> ")
-    
-    if choice == "1":
-        value = True
-    elif choice == "2":
-        value = False
-    elif choice == "":
-        return None
+    value_error = False
+    value = ""
+    while True:
+        clear_screen()
+        draw_settings_header("security")
+        print(" Enabling this will hide all user/credential password entries and displays.\n")
 
-    update_setting(user_id, setting, value)
+        if value_error is True:
+            print("Please enter a valid option.\n")
+            value_error = False
+
+        print("  1. Yes")
+        print("  2. No")
+        print()
+        choice = input("> ")
+        if choice == "1":
+            value = "True"
+            update_setting(user_id, setting, True)
+            break
+        elif choice == "2":
+            value = "False"
+            update_setting(user_id, setting, False)
+            break
+        elif choice == "":
+            return None
+        else: 
+            value_error = True
+            continue
 
     return value
 
@@ -86,9 +119,9 @@ def set_clipboard_timeout(user_id, setting, current_value):
     while True:
         try:
             clear_screen()
-            draw_options_header("Clipboard Timeout")
-            print("Set the amount of time after copying a password until it is cleared from the clipboard.")
-            print(f"\nInput '0' to disable this function. Current Value: {current_value}")
+            draw_settings_header("security")
+            print(" Set the amount of time after copying a password until it is cleared from the clipboard.")
+            print(f"\n Input '0' to disable this function. Current Value: {current_value}")
 
             if value_error is True:
                 print("\nPlease enter a valid number.")
@@ -121,9 +154,9 @@ def set_auto_lock_timeout(user_id, setting, current_value):
     while True:
         try:
             clear_screen()
-            draw_options_header("Log-out Timer")
-            print("Set the amount of time after log-in until the user is automatically logged out.")
-            print(f"\nInput '0' to disable this function. Current Value: {current_value}")
+            draw_settings_header("security")
+            print(" Set the amount of time after log-in until the user is automatically logged out.")
+            print(f"\n Input '0' to disable this function. Current Value: {current_value}")
 
             if value_error is True:
                 print("\nPlease enter a valid number.")
@@ -148,14 +181,44 @@ def set_auto_lock_timeout(user_id, setting, current_value):
         update_setting(user_id, setting, value)
         
     return value
+
+def change_username_setting(user_id, current_username):
+    draw_settings_header("accounts")
+    password = getpass("Enter password to continue: ")
+    user, key = login(current_username, password)
+    
+    if (user, key) == (None, None):
+        return 0, None # failed
+    username_taken = False
+    while True:
+        draw_settings_header("accounts")
+        if username_taken is True:
+            print(f"Username '{new_username}' is already in use.\n")
+            username_taken = False
+        print(f" Current Username: {current_username}\n")
+        new_username = input(f"     New Username: ")
+        if get_user(new_username) is not None:
+            username_taken = True
+            continue
+        elif new_username.strip() == "" or new_username == current_username:
+            return 1, None # cancel
+        else:
+            set_username(user_id, new_username)
+            break
+        
+    return 2, new_username # success
+
+
+
+
     
 def set_default_sort(user_id, setting, current_value):
 
     value_error = False
     while True:
         clear_screen()
-        draw_options_header("Sort by")
-        print("Set how the credentials list is displayed by:\n")
+        draw_settings_header("credentials")
+        print(" Set how the credentials list is displayed by:\n")
         print("  1. Service name (A-Z)")
         print("  2. Date of creation (Newest)")
         print("  3. Last updated (Newest)")

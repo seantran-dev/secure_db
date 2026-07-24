@@ -37,3 +37,20 @@ def get_user(username):
 
     return user
 
+def set_username(user_id, username):
+    conn = get_connection() 
+    cur = conn.cursor() 
+
+    cur.execute(
+        """
+        UPDATE users
+        SET username = %s
+        WHERE user_id = %s
+        """,
+        (username, user_id)    
+    )
+
+    conn.commit()
+
+    cur.close()
+    conn.close()

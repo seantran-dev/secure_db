@@ -18,7 +18,6 @@ from menus.system import *
 
 # Main Menu Navigation
 breadcrumb = []
-breadcrumb.append("Welcome")
 global settings_tab
 settings_tab = "security"
 
@@ -28,23 +27,39 @@ def draw_header(user):
     
     line_length = 45
     if user is None:
-        print("[SecureDB] ")
+        print(" SecureDB ")
     else:
         name = user[1]
-        print(f"[SecureDB] ", end ="")
+        print(f" SecureDB ", end ="")
         print(" " * (line_length - 17 - len(name)), end = "")
         print(f"User: {name}")
     print("-" * line_length, end = "\n")
     print(" ", end = "")
+    last = f"[{breadcrumb.pop()}]"
+    breadcrumb.append(last)
     print(" > ".join(breadcrumb))
+    last = breadcrumb.pop()[1:-1]
+    breadcrumb.append(last)
     print("-" * line_length, end = "\n")
 
-def draw_settings_header(user):
+def draw_settings_header(current_tab, user = None):
     line_length = 45
-    name = user[1]
-    print(f"SecureDB > Settings", end ="")
-    print(" " * (line_length - 25 - len(name)), end = "")
-    print(f"User: {name}")
+    
+    print(f" SecureDB > Settings", end ="")
+    
+    if user == None:
+        print("")
+    else:
+        name = user[1]
+        print(" " * (line_length - 26 - len(name)), end = "")
+        print(f"User: {name}")
+    print("-" * line_length, end = "\n")
+    if current_tab == "security":  
+        print(" [Security]    Credentials     User Account")
+    elif current_tab == "credentials":  
+        print("  Security    [Credentials]    User Account")
+    elif current_tab == "accounts":
+        print("  Security     Credentials    [User Account]")
     print("-" * line_length, end = "\n")
 
 # Clears screen
@@ -57,17 +72,23 @@ def back(n):
         breadcrumb.pop()
 
 # Exit program
-def exit_program():
-    clear_screen()
-    print("[SecureDB]")
-    print("-" * 20)
-    print("//USER - Application closed successfully.\n")
-    input("\nPress [ENTER] to continue.")
-    clear_screen()
-    raise SystemExit(0)
+def exit_program(fast_exit = False):
+    if fast_exit == True:
+        clear_screen()
+        raise SystemExit(0)
+    elif fast_exit == False:
+        clear_screen()
+        print(" SecureDB")
+        print("-" * 45)
+        print(" Application closed successfully.\n")
+        print(" Today was a good day.")
+        input("\n Press [ENTER] to continue.")
+        clear_screen()
+        raise SystemExit(0)
 
 
 def main_menu(fail_status = None, cancelled_registration = None, short = None):
+    breadcrumb.append("Password Vault")
     clear_screen()
     draw_header(None)
     if fail_status is True and cancelled_registration is None:
@@ -75,7 +96,7 @@ def main_menu(fail_status = None, cancelled_registration = None, short = None):
     elif cancelled_registration is True:
         print("//USER - Registration cancelled.\n")
     elif cancelled_registration is False and short is False:
-        print("//ACCEPTED - Registration successful, please log-in.\n")
+        print("Registration successful, please log-in.\n")
     elif short is True:
         print("//ERROR - All input must be 4 characters minimum.\n")
     
@@ -88,9 +109,11 @@ def main_menu(fail_status = None, cancelled_registration = None, short = None):
         page_main_menu = input("> ")
         print()
         if page_main_menu == "1": # Log-in
+            back(1)
             login_menu()
             break
         elif page_main_menu == "2": # Register
+            back(1)
             register_menu()
             break
         elif page_main_menu.lower() == "q" or page_main_menu.lower() == "":
@@ -105,7 +128,7 @@ def main_menu(fail_status = None, cancelled_registration = None, short = None):
 def login_menu():
     breadcrumb.append("Log-in")
     draw_header(None)
-    
+    print(" Please enter log-in information.\n")
     username = input(" Username: ")
     password = getpass(" Password: ")
 
@@ -125,7 +148,7 @@ def register_menu(user_taken = False):
     if user_taken == True:
         print("//DENIED - Username already taken.\n")
     else:
-        print("[Register] Please enter user information. (At least 4 characters long)\n")
+        print(" Please enter user information. (At least 4 characters long)\n")
     username = input(" Username:  ")
     if get_user(username) is not None:
         back(1)
@@ -171,7 +194,7 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
     draw_header(user)
 
     if login_success == True:
-        print("//ACCEPTED - Login successful!\n")
+        print(f" Login successful! Welcome, {user[1]}.\n")
     elif no_credentials_stored == True:
         print("//ERROR - No credentials found.\n")
     elif add_success == True:
@@ -179,7 +202,7 @@ def login_options(u, k, login_success, no_credentials_stored, add_success):
     elif add_success == False:
         print("//USER - Cancelled operation.\n")
     elif login_success == None and no_credentials_stored == False and add_success == None:
-        print("", end="")
+        print(f" Welcome, {user[1]}.\n")
     else:
         draw_header(user)
         print("//ERROR - Please select a valid option.\n")
@@ -222,7 +245,7 @@ def settings_menu(user, key):
         security_settings_menu(user, key)
     elif settings_tab == "credentials":
         credentials_settings_menu(user, key)
-    elif settings_tab == "account":
+    elif settings_tab == "accounts":
         account_settings_menu(user, key)
 
 
@@ -240,18 +263,18 @@ def security_settings_menu(user, key):
 
         clear_screen()
         
-        draw_settings_header(user)
-        print("[ Security ]   Credentials     User Account")
-        print("-" * 45) 
+        draw_settings_header(settings_tab, user)
+
         if updated is True:
             print("//ACCEPTED - Setting has been updated.\n")
             updated = False
         elif updated is False:
             print("//USER - No changes made.\n")
         print(" Select an option to edit value.\n")
-        print(f"  1. Hide passwords:             {str(hide_passwords).lower()}")
-        print(f"  2. Clipboard Timeout:          {clipboard_timeout} seconds")
-        print(f"  3. Log-out Timer:              {auto_lock_timeout} minutes")
+        print(f"  1. Hide passwords:                   {get_title(str(hide_passwords))}")
+        print(f"  2. Clipboard Timeout:                {clipboard_timeout} seconds")
+        print(f"  3. Log-out Timer:                    {auto_lock_timeout} minutes")
+        print(f"  4. Silence Quit Message:             No")
         print()
         print("  N: Next Page")
         print()
@@ -305,21 +328,27 @@ def security_settings_menu(user, key):
                 exit_program()
                 break
 
-def get_sort_title(sort_by):
-    match sort_by:
+def get_title(variable):
+    match variable:
         case "service":
-            sort_title = "Service (A-Z)"
+            variable = "Service (A-Z)"
         case "created_at":
-            sort_title = "Created at (Newest)"
+            variable = "Created at (Newest)"
         case "updated_at":
-            sort_title = "Updated at (Newest)"
+            variable = "Updated at (Newest)"
         case "service (inversed)":
-            sort_title = "Service (Z-A)"
+            variable = "Service (Z-A)"
         case "created_at (inversed)":
-            sort_title = "Created at (Oldest)"
+            variable = "Created at (Oldest)"
         case "updated_at (inversed)":
-            sort_title = "Updated at (Oldest)"
-    return sort_title
+            variable = "Updated at (Oldest)"
+
+        case "True":
+            variable = "Yes"
+        case "False":
+            variable = "No"
+
+    return variable
 
 def credentials_settings_menu(user, key):
     global settings_tab
@@ -330,20 +359,17 @@ def credentials_settings_menu(user, key):
         settings = load_user_settings(user_id)
         default_sort = settings[4] # string (default service)
 
-
-
         clear_screen()
         
-        draw_settings_header(user)
-        print("  Security   [ Credentials ]   User Account")
-        print("-" * 45) 
+        draw_settings_header(settings_tab, user)
+
         if updated is True:
             print("//ACCEPTED - Setting has been updated.\n")
             updated = False
         elif updated is False:
             print("//USER - No changes made.\n")
         print(" Select an option to edit value.\n")
-        print(f"  1. Sort credentials by:        {get_sort_title(default_sort)}")
+        print(f"  1. Sort credentials by:        {get_title(default_sort)}")
         print()
         print("  N: Next Page")
         print("  B: Previous Page")
@@ -361,6 +387,8 @@ def credentials_settings_menu(user, key):
                     updated = False
             case "b": 
                 security_settings_menu(user, key)
+            case "n":
+                account_settings_menu(user, key)
             case "x":
                 if breadcrumb[-1].lower() == "menu":
                     back(1)
@@ -385,9 +413,75 @@ def credentials_settings_menu(user, key):
                 exit_program()
                 break
 
-def account_settings_menu():
+def account_settings_menu(user, key):
+    global settings_tab
     settings_tab = "accounts"
-    print()
+    updated = 100
+    user_id = user[0]
+    username = user[1]
+
+    while True:
+
+        user = get_user(username)
+        clear_screen()
+        
+        draw_settings_header(settings_tab, user)
+
+        if updated == 2:
+            print("//ACCEPTED - Setting has been updated.\n")
+            updated = False
+        elif updated == 1:
+            print("//USER - No changes made.\n")
+        elif updated == 0: 
+            print("//DENIED - Password is incorrect.\n")
+
+        print(f" Username:         {user[1]}")
+        print(f" E-mail:           {user[2]}")
+        print()
+        print(f" Account created:  {user[4].strftime('%b %d, %Y %I:%M %p')}")
+        print()
+        print("  1. Change Username")
+        print("  2. Change E-mail")
+        print("  3. Change Master Password")
+        print("  4. Delete Account")
+        print()
+        print("  B: Previous Page")
+        print()
+        print("  X: Exit Settings")
+        print("  Q: Quit Program")
+        print()
+        choice = input("> ").strip().lower()
+        match choice:
+            case "1":
+                updated, name = change_username_setting(user_id, username)
+                if name is not None:
+                    username = name
+                continue
+            case "b": 
+                credentials_settings_menu(user, key)
+            case "x":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
+            case "":
+                if breadcrumb[-1].lower() == "menu":
+                    back(1)
+                    login_options(user, key, None, False, None)
+                elif breadcrumb[-1].lower() == "display":
+                    back(1)
+                    clear_screen()
+                    draw_header(user)
+                    get_credentials_menu(user, key, False)
+                break
+            case "q":
+                exit_program()
+                break
 
 # Main Menu > Log-in > Credentials > Display
 def get_credentials_menu(user, key, deletion_success = False):
@@ -469,9 +563,9 @@ def credentials_options(user, key, credentials_list):
         print("//ERROR - Please select a valid option.\n")
 
 # Main Menu > Log-in > Credentials > View > Service
-def credential_options(user, key, credentials, user_settings, cancelled = False, copied_password = False, ):
+def credential_options(user, key, credentials, user_settings, cancelled = False, copied_password = False):
     clear_screen()
-    breadcrumb.append("Service")
+    breadcrumb.append(credentials[2])
     draw_header(user)
     password_star = "********"
     clipboard_timeout = user_settings[2]
